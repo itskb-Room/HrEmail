@@ -2,7 +2,7 @@
 
 เว็บแอป Google Apps Script สำหรับให้พนักงานค้นหาข้อมูลจากรหัสพนักงาน อัปเดตเบอร์โทรศัพท์/อีเมล และให้ HR ตรวจสอบรายการที่ยังไม่ยืนยันผ่านแดชบอร์ดผู้ดูแล หน้า `index.html` ที่ root ใช้เป็น GitHub Pages wrapper ส่วน source ของ Apps Script อยู่ใน `src/`
 
-> Repository นี้เก็บเฉพาะ source code ห้าม commit ทะเบียนพนักงาน ข้อมูลส่วนบุคคล Spreadsheet ID, Script ID, deployment URL, OAuth credentials หรือรหัสผ่าน
+> Repository นี้เก็บเฉพาะ source code ห้าม commit ทะเบียนพนักงาน ข้อมูลส่วนบุคคล Spreadsheet ID, Script ID, OAuth credentials หรือรหัสผ่าน ส่วน deployment URL ใน GitHub Pages เป็น URL สาธารณะ
 
 ## โครงสร้างข้อมูล Google Sheets
 
