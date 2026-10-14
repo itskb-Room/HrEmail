@@ -60,7 +60,7 @@ clasp push
 
 ## GitHub Pages
 
-ไฟล์ `index.html` ที่ root เป็น wrapper สำหรับแสดง Web app ที่เผยแพร่จาก Apps Script URL ของ deployment จะมองเห็นได้ใน source และ Network inspector ตามธรรมชาติ จึงต้องถือว่าเป็น URL สาธารณะ ไม่ใช้ URL เป็นกลไกยืนยันตัวตน และห้ามใส่ Spreadsheet ID, Script ID, รหัสผ่าน หรือข้อมูลรับรองลงใน wrapper
+ไฟล์ `index.html` ที่ root เปลี่ยนเส้นทางไปยัง Web app ที่เผยแพร่จาก Apps Script โดยตรง เนื่องจาก Apps Script ใช้ `X-Frame-Options: sameorigin` และไม่อนุญาตให้ GitHub Pages ฝังผ่าน iframe URL ของ deployment จะมองเห็นได้ใน source และ Network inspector ตามธรรมชาติ จึงต้องถือว่าเป็น URL สาธารณะ ไม่ใช้ URL เป็นกลไกยืนยันตัวตน และห้ามใส่ Spreadsheet ID, Script ID, รหัสผ่าน หรือข้อมูลรับรองลงในหน้า redirect
 
 ## คำเตือนด้านความปลอดภัย
 
