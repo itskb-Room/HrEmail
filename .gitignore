@@ -1,0 +1,31 @@
+.clasp.json
+.clasprc.json
+node_modules/
+*.log
+
+# HR records and exports
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.tsv
+*.ods
+exports/
+backups/
+
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+client_secret*.json
+credentials*.json
+token*.json
+service-account*.json
+*.pem
+*.key
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
