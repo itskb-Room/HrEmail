@@ -10,7 +10,11 @@ const RESIDENCE_TYPES = ['บ้านตนเอง', 'บ้านเช่�
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('อัปเดตข้อมูลติดต่อพนักงาน | SKB People');
+    .setTitle('อัปเดตข้อมูลติดต่อพนักงาน | SKB People')
+    // This must be added to HtmlOutput itself. A viewport tag inside index.html
+    // applies only to Apps Script's inner iframe, so iOS/Android otherwise
+    // render the outer page at desktop width and shrink the whole application.
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
 }
 
 function spreadsheet_() {
