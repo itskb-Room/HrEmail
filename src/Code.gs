@@ -24,6 +24,16 @@ function employeeSheet_() {
   return sheet;
 }
 
+function ensureEmployeeProfileHeaders_(sheet) {
+  const expected = ['เคยบรรพชาหรืออุปสมบท', 'เคยไปอุมเราะห์/ฮัจญ์', 'กรุ๊ปเลือด', 'ยินยอม PDPA', 'เวลาที่ยินยอม'];
+  const range = sheet.getRange(4, 10, 1, expected.length);
+  const current = range.getDisplayValues()[0];
+  current.forEach((value, i) => {
+    if (value && value !== expected[i]) throw new Error('ไม่สามารถเพิ่มคอลัมน์ข้อมูลที่ ' + String.fromCharCode(74 + i) + ' ได้ เนื่องจากมีหัวคอลัมน์อื่นอยู่แล้ว');
+  });
+  range.setValues([expected]);
+}
+
 function updatesSheet_() {
   const book = spreadsheet_();
   let sheet = book.getSheetByName(UPDATE_SHEET);
@@ -36,6 +46,7 @@ function updatesSheet_() {
 
 function employeeRows_() {
   const sheet = employeeSheet_();
+  ensureEmployeeProfileHeaders_(sheet);
   const last = sheet.getLastRow();
   if (last < 5) return [];
   return sheet.getRange(5, 1, last - 4, 9).getDisplayValues()
@@ -138,6 +149,21 @@ function writeStatus_(id, confirmed, actor, profile, consentAccepted) {
   else sheet.appendRow(row);
 }
 
+function writeEmployeeProfile_(employee, profile, consentAccepted) {
+  const sheet = employeeSheet_();
+  ensureEmployeeProfileHeaders_(sheet);
+  const old = statuses_()[employee.id] || {};
+  const consent = consentAccepted === true || old.consent === true;
+  const consentAt = consentAccepted === true ? new Date() : old.consentAt || '';
+  sheet.getRange(employee.row, 10, 1, 5).setValues([[
+    profile.ordination === true ? 'YES' : profile.ordination === false ? 'NO' : '',
+    profile.pilgrimage === true ? 'YES' : profile.pilgrimage === false ? 'NO' : '',
+    profile.bloodGroup || '',
+    consent ? 'YES' : 'NO',
+    consentAt
+  ]]);
+}
+
 function updateContact(id, phone, email, ordination, pilgrimage, bloodGroup, consentAccepted) {
   const contact = validateContact_(phone, email, true);
   const profile = validateProfile_(ordination, pilgrimage, bloodGroup, true);
@@ -148,6 +174,7 @@ function updateContact(id, phone, email, ordination, pilgrimage, bloodGroup, con
     const employee = findEmployee_(id);
     if (!employee) throw new Error('ไม่พบรหัสพนักงาน');
     employeeSheet_().getRange(employee.row, 8, 1, 2).setValues([[contact.phone, contact.email]]);
+    writeEmployeeProfile_(employee, profile, true);
     writeStatus_(employee.id, true, 'self-service (code only)', profile, true);
     return {ok: true};
   } finally { lock.releaseLock(); }
@@ -235,6 +262,7 @@ function adminSaveEmployee(token, id, phone, email, confirmed, ordination, pilgr
     const employee = findEmployee_(id);
     if (!employee) throw new Error('ไม่พบรหัสพนักงาน');
     employeeSheet_().getRange(employee.row, 8, 1, 2).setValues([[contact.phone, contact.email]]);
+    writeEmployeeProfile_(employee, profile, false);
     writeStatus_(employee.id, confirmed === true, 'admin', profile);
     return {ok: true};
   } finally { lock.releaseLock(); }
