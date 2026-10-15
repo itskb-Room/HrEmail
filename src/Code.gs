@@ -5,7 +5,7 @@
 const EMPLOYEE_SHEET = 'ทะเบียนพนักงาน 2569';
 const UPDATE_SHEET = 'ContactUpdates';
 const SESSION_SECONDS = 1800;
-const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'ไม่ทราบ'];
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
@@ -30,7 +30,7 @@ function updatesSheet_() {
   if (!sheet) {
     sheet = book.insertSheet(UPDATE_SHEET);
   }
-  sheet.getRange(1, 1, 1, 7).setValues([['รหัสพนักงาน', 'สถานะยืนยัน', 'เวลาที่แก้ไข', 'ผู้แก้ไข', 'เคยบรรพชาหรืออุปสมบท', 'เคยไปอุมเราะห์/ฮัจญ์', 'กรุ๊ปเลือด']]);
+  sheet.getRange(1, 1, 1, 9).setValues([['รหัสพนักงาน', 'สถานะยืนยัน', 'เวลาที่แก้ไข', 'ผู้แก้ไข', 'เคยบรรพชาหรืออุปสมบท', 'เคยไปอุมเราะห์/ฮัจญ์', 'กรุ๊ปเลือด', 'ยินยอม PDPA', 'เวลาที่ยินยอม']]);
   return sheet;
 }
 
@@ -47,8 +47,8 @@ function statuses_() {
   const sheet = updatesSheet_();
   const last = sheet.getLastRow();
   const map = {};
-  if (last > 1) sheet.getRange(2, 1, last - 1, 7).getDisplayValues().forEach((r, i) => {
-    if (r[0]) map[r[0]] = {confirmed: r[1] === 'YES', updatedAt: r[2], updatedBy: r[3], ordination: r[4] === 'YES' ? true : r[4] === 'NO' ? false : null, pilgrimage: r[5] === 'YES' ? true : r[5] === 'NO' ? false : null, bloodGroup: r[6] || '', row: i + 2};
+  if (last > 1) sheet.getRange(2, 1, last - 1, 9).getDisplayValues().forEach((r, i) => {
+    if (r[0]) map[r[0]] = {confirmed: r[1] === 'YES', updatedAt: r[2], updatedBy: r[3], ordination: r[4] === 'YES' ? true : r[4] === 'NO' ? false : null, pilgrimage: r[5] === 'YES' ? true : r[5] === 'NO' ? false : null, bloodGroup: r[6] || '', consent: r[7] === 'YES', consentAt: r[8] || '', row: i + 2};
   });
   return map;
 }
@@ -59,7 +59,7 @@ function findEmployee_(id) {
 
 function publicEmployee_(e, status) {
   status = status || {};
-  return {id: e.id, name: e.name, department: e.department, position: e.position, phone: e.phone, email: e.email, ordination: status.ordination === true ? true : status.ordination === false ? false : null, pilgrimage: status.pilgrimage === true ? true : status.pilgrimage === false ? false : null, bloodGroup: status.bloodGroup || ''};
+  return {id: e.id, name: e.name, department: e.department, position: e.position, phone: e.phone, email: e.email, ordination: status.ordination === true ? true : status.ordination === false ? false : null, pilgrimage: status.pilgrimage === true ? true : status.pilgrimage === false ? false : null, bloodGroup: status.bloodGroup || '', consent: status.consent === true, consentAt: status.consentAt || ''};
 }
 
 function lookupEmployee(id) {
@@ -127,25 +127,28 @@ function validateProfile_(ordination, pilgrimage, bloodGroup, required) {
   return {ordination: hasOrdination ? ordination : null, pilgrimage: hasPilgrimage ? pilgrimage : null, bloodGroup: bloodGroup};
 }
 
-function writeStatus_(id, confirmed, actor, profile) {
+function writeStatus_(id, confirmed, actor, profile, consentAccepted) {
   const sheet = updatesSheet_();
   const old = statuses_()[id];
   profile = profile || old || {};
-  const row = [id, confirmed ? 'YES' : 'NO', new Date(), actor, profile.ordination === true ? 'YES' : profile.ordination === false ? 'NO' : '', profile.pilgrimage === true ? 'YES' : profile.pilgrimage === false ? 'NO' : '', profile.bloodGroup || ''];
-  if (old) sheet.getRange(old.row, 1, 1, 7).setValues([row]);
+  const consent = consentAccepted === true || !!(old && old.consent);
+  const consentAt = consentAccepted === true ? new Date() : old && old.consentAt ? old.consentAt : '';
+  const row = [id, confirmed ? 'YES' : 'NO', new Date(), actor, profile.ordination === true ? 'YES' : profile.ordination === false ? 'NO' : '', profile.pilgrimage === true ? 'YES' : profile.pilgrimage === false ? 'NO' : '', profile.bloodGroup || '', consent ? 'YES' : 'NO', consentAt];
+  if (old) sheet.getRange(old.row, 1, 1, 9).setValues([row]);
   else sheet.appendRow(row);
 }
 
-function updateContact(id, phone, email, ordination, pilgrimage, bloodGroup) {
+function updateContact(id, phone, email, ordination, pilgrimage, bloodGroup, consentAccepted) {
   const contact = validateContact_(phone, email, true);
   const profile = validateProfile_(ordination, pilgrimage, bloodGroup, true);
+  if (consentAccepted !== true) throw new Error('กรุณายินยอมการเก็บและใช้ข้อมูลส่วนบุคคลตาม PDPA ก่อนยืนยัน');
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
     const employee = findEmployee_(id);
     if (!employee) throw new Error('ไม่พบรหัสพนักงาน');
     employeeSheet_().getRange(employee.row, 8, 1, 2).setValues([[contact.phone, contact.email]]);
-    writeStatus_(employee.id, true, 'self-service (code only)', profile);
+    writeStatus_(employee.id, true, 'self-service (code only)', profile, true);
     return {ok: true};
   } finally { lock.releaseLock(); }
 }
