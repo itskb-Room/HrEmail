@@ -6,6 +6,7 @@ const EMPLOYEE_SHEET = 'ทะเบียนพนักงาน 2569';
 const UPDATE_SHEET = 'ContactUpdates';
 const SESSION_SECONDS = 1800;
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'ไม่ทราบ'];
+const RESIDENCE_TYPES = ['บ้านตนเอง', 'บ้านเช่า', 'หอพัก/อพาร์ตเมนต์'];
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
@@ -25,7 +26,7 @@ function employeeSheet_() {
 }
 
 function ensureEmployeeProfileHeaders_(sheet) {
-  const expected = ['เคยบรรพชาหรืออุปสมบท', 'เคยไปอุมเราะห์/ฮัจญ์', 'กรุ๊ปเลือด', 'ยินยอม PDPA', 'เวลาที่ยินยอม'];
+  const expected = ['เคยบรรพชาหรืออุปสมบท', 'เคยไปอุมเราะห์/ฮัจญ์', 'กรุ๊ปเลือด', 'ยินยอม PDPA', 'เวลาที่ยินยอม', 'ประเภทที่พัก', 'ชื่ออาคาร/หมู่บ้าน', 'บ้านเลขที่', 'หมู่', 'ซอย', 'ถนน', 'ตำบล/แขวง', 'อำเภอ/เขต', 'จังหวัด', 'รหัสไปรษณีย์', 'ที่อยู่ปัจจุบัน (รวม)'];
   const range = sheet.getRange(4, 10, 1, expected.length);
   const current = range.getDisplayValues()[0];
   current.forEach((value, i) => {
@@ -40,7 +41,7 @@ function updatesSheet_() {
   if (!sheet) {
     sheet = book.insertSheet(UPDATE_SHEET);
   }
-  sheet.getRange(1, 1, 1, 9).setValues([['รหัสพนักงาน', 'สถานะยืนยัน', 'เวลาที่แก้ไข', 'ผู้แก้ไข', 'เคยบรรพชาหรืออุปสมบท', 'เคยไปอุมเราะห์/ฮัจญ์', 'กรุ๊ปเลือด', 'ยินยอม PDPA', 'เวลาที่ยินยอม']]);
+  sheet.getRange(1, 1, 1, 20).setValues([['รหัสพนักงาน', 'สถานะยืนยัน', 'เวลาที่แก้ไข', 'ผู้แก้ไข', 'เคยบรรพชาหรืออุปสมบท', 'เคยไปอุมเราะห์/ฮัจญ์', 'กรุ๊ปเลือด', 'ยินยอม PDPA', 'เวลาที่ยินยอม', 'ประเภทที่พัก', 'ชื่ออาคาร/หมู่บ้าน', 'บ้านเลขที่', 'หมู่', 'ซอย', 'ถนน', 'ตำบล/แขวง', 'อำเภอ/เขต', 'จังหวัด', 'รหัสไปรษณีย์', 'ที่อยู่ปัจจุบัน (รวม)']]);
   return sheet;
 }
 
@@ -58,8 +59,8 @@ function statuses_() {
   const sheet = updatesSheet_();
   const last = sheet.getLastRow();
   const map = {};
-  if (last > 1) sheet.getRange(2, 1, last - 1, 9).getDisplayValues().forEach((r, i) => {
-    if (r[0]) map[r[0]] = {confirmed: r[1] === 'YES', updatedAt: r[2], updatedBy: r[3], ordination: r[4] === 'YES' ? true : r[4] === 'NO' ? false : null, pilgrimage: r[5] === 'YES' ? true : r[5] === 'NO' ? false : null, bloodGroup: r[6] || '', consent: r[7] === 'YES', consentAt: r[8] || '', row: i + 2};
+  if (last > 1) sheet.getRange(2, 1, last - 1, 20).getDisplayValues().forEach((r, i) => {
+    if (r[0]) map[r[0]] = {confirmed: r[1] === 'YES', updatedAt: r[2], updatedBy: r[3], ordination: r[4] === 'YES' ? true : r[4] === 'NO' ? false : null, pilgrimage: r[5] === 'YES' ? true : r[5] === 'NO' ? false : null, bloodGroup: r[6] || '', consent: r[7] === 'YES', consentAt: r[8] || '', residenceType: r[9] || '', building: r[10] || '', houseNo: r[11] || '', moo: r[12] || '', soi: r[13] || '', road: r[14] || '', subdistrict: r[15] || '', district: r[16] || '', province: r[17] || '', postalCode: r[18] || '', row: i + 2};
   });
   return map;
 }
@@ -70,7 +71,7 @@ function findEmployee_(id) {
 
 function publicEmployee_(e, status) {
   status = status || {};
-  return {id: e.id, name: e.name, department: e.department, position: e.position, phone: e.phone, email: e.email, ordination: status.ordination === true ? true : status.ordination === false ? false : null, pilgrimage: status.pilgrimage === true ? true : status.pilgrimage === false ? false : null, bloodGroup: status.bloodGroup || '', consent: status.consent === true, consentAt: status.consentAt || ''};
+  return {id: e.id, name: e.name, department: e.department, position: e.position, phone: e.phone, email: e.email, ordination: status.ordination === true ? true : status.ordination === false ? false : null, pilgrimage: status.pilgrimage === true ? true : status.pilgrimage === false ? false : null, bloodGroup: status.bloodGroup || '', consent: status.consent === true, consentAt: status.consentAt || '', residenceType: status.residenceType || '', building: status.building || '', houseNo: status.houseNo || '', moo: status.moo || '', soi: status.soi || '', road: status.road || '', subdistrict: status.subdistrict || '', district: status.district || '', province: status.province || '', postalCode: status.postalCode || '', addressText: formatAddress_(status)};
 }
 
 function lookupEmployee(id) {
@@ -138,29 +139,65 @@ function validateProfile_(ordination, pilgrimage, bloodGroup, required) {
   return {ordination: hasOrdination ? ordination : null, pilgrimage: hasPilgrimage ? pilgrimage : null, bloodGroup: bloodGroup};
 }
 
-function writeStatus_(id, confirmed, actor, profile, consentAccepted) {
+function validateAddress_(address, required) {
+  address = address && typeof address === 'object' ? address : {};
+  const clean = key => String(address[key] || '').trim();
+  const result = {residenceType: clean('residenceType'), building: clean('building'), houseNo: clean('houseNo'), moo: clean('moo'), soi: clean('soi'), road: clean('road'), subdistrict: clean('subdistrict'), district: clean('district'), province: clean('province'), postalCode: clean('postalCode')};
+  if (result.residenceType && RESIDENCE_TYPES.indexOf(result.residenceType) < 0) throw new Error('ประเภทที่พักไม่ถูกต้อง');
+  if (required && !result.residenceType) throw new Error('กรุณาเลือกประเภทที่พักอาศัย');
+  if (required && !result.houseNo) throw new Error('กรุณากรอกบ้านเลขที่');
+  if (required && !result.subdistrict) throw new Error('กรุณากรอกตำบล/แขวง');
+  if (required && !result.district) throw new Error('กรุณากรอกอำเภอ/เขต');
+  if (required && !result.province) throw new Error('กรุณาเลือกจังหวัด');
+  if (required && !result.postalCode) throw new Error('กรุณากรอกรหัสไปรษณีย์');
+  if (result.postalCode && !/^\d{5}$/.test(result.postalCode)) throw new Error('รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก');
+  return result;
+}
+
+function formatAddress_(address) {
+  address = address && typeof address === 'object' ? address : {};
+  const value = key => String(address[key] || '').trim();
+  const parts = [];
+  if (value('houseNo')) parts.push('บ้านเลขที่ ' + value('houseNo'));
+  if (value('moo')) parts.push('หมู่ ' + value('moo'));
+  if (value('soi')) parts.push('ซอย ' + value('soi'));
+  if (value('road')) parts.push('ถนน ' + value('road'));
+  if (value('building')) parts.push(value('building'));
+  if (value('subdistrict')) parts.push('ตำบล/แขวง ' + value('subdistrict'));
+  if (value('district')) parts.push('อำเภอ/เขต ' + value('district'));
+  if (value('province')) parts.push('จังหวัด ' + value('province'));
+  if (value('postalCode')) parts.push(value('postalCode'));
+  if (!parts.length) return '';
+  return (value('residenceType') ? value('residenceType') + ' · ' : '') + parts.join(' ');
+}
+
+function writeStatus_(id, confirmed, actor, profile, consentAccepted, address) {
   const sheet = updatesSheet_();
   const old = statuses_()[id];
   profile = profile || old || {};
+  address = address || old || {};
   const consent = consentAccepted === true || !!(old && old.consent);
   const consentAt = consentAccepted === true ? new Date() : old && old.consentAt ? old.consentAt : '';
-  const row = [id, confirmed ? 'YES' : 'NO', new Date(), actor, profile.ordination === true ? 'YES' : profile.ordination === false ? 'NO' : '', profile.pilgrimage === true ? 'YES' : profile.pilgrimage === false ? 'NO' : '', profile.bloodGroup || '', consent ? 'YES' : 'NO', consentAt];
-  if (old) sheet.getRange(old.row, 1, 1, 9).setValues([row]);
+  const row = [id, confirmed ? 'YES' : 'NO', new Date(), actor, profile.ordination === true ? 'YES' : profile.ordination === false ? 'NO' : '', profile.pilgrimage === true ? 'YES' : profile.pilgrimage === false ? 'NO' : '', profile.bloodGroup || '', consent ? 'YES' : 'NO', consentAt, address.residenceType || '', address.building || '', address.houseNo || '', address.moo || '', address.soi || '', address.road || '', address.subdistrict || '', address.district || '', address.province || '', address.postalCode || '', formatAddress_(address)];
+  if (old) sheet.getRange(old.row, 1, 1, 20).setValues([row]);
   else sheet.appendRow(row);
 }
 
-function writeEmployeeProfile_(employee, profile, consentAccepted) {
+function writeEmployeeProfile_(employee, profile, consentAccepted, address) {
   const sheet = employeeSheet_();
   ensureEmployeeProfileHeaders_(sheet);
   const old = statuses_()[employee.id] || {};
   const consent = consentAccepted === true || old.consent === true;
   const consentAt = consentAccepted === true ? new Date() : old.consentAt || '';
-  sheet.getRange(employee.row, 10, 1, 5).setValues([[
+  address = address || {};
+  sheet.getRange(employee.row, 10, 1, 16).setValues([[
     profile.ordination === true ? 'YES' : profile.ordination === false ? 'NO' : '',
     profile.pilgrimage === true ? 'YES' : profile.pilgrimage === false ? 'NO' : '',
     profile.bloodGroup || '',
     consent ? 'YES' : 'NO',
-    consentAt
+    consentAt,
+    address.residenceType || '', address.building || '', address.houseNo || '', address.moo || '', address.soi || '', address.road || '', address.subdistrict || '', address.district || '', address.province || '', address.postalCode || '',
+    formatAddress_(address)
   ]]);
 }
 
@@ -173,19 +210,22 @@ function syncProfilesToEmployeeRegister_(employees, statuses) {
     const employee = byId[id];
     const status = statuses[id];
     if (!employee) return;
-    sheet.getRange(employee.row, 10, 1, 5).setValues([[
+    sheet.getRange(employee.row, 10, 1, 16).setValues([[
       status.ordination === true ? 'YES' : status.ordination === false ? 'NO' : '',
       status.pilgrimage === true ? 'YES' : status.pilgrimage === false ? 'NO' : '',
       status.bloodGroup || '',
       status.consent ? 'YES' : 'NO',
-      status.consentAt || ''
+      status.consentAt || '',
+      status.residenceType || '', status.building || '', status.houseNo || '', status.moo || '', status.soi || '', status.road || '', status.subdistrict || '', status.district || '', status.province || '', status.postalCode || '',
+      formatAddress_(status)
     ]]);
   });
 }
 
-function updateContact(id, phone, email, ordination, pilgrimage, bloodGroup, consentAccepted) {
+function updateContact(id, phone, email, ordination, pilgrimage, bloodGroup, consentAccepted, address) {
   const contact = validateContact_(phone, email, true);
   const profile = validateProfile_(ordination, pilgrimage, bloodGroup, true);
+  const currentAddress = validateAddress_(address, true);
   if (consentAccepted !== true) throw new Error('กรุณายินยอมการเก็บและใช้ข้อมูลส่วนบุคคลตาม PDPA ก่อนยืนยัน');
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -193,8 +233,8 @@ function updateContact(id, phone, email, ordination, pilgrimage, bloodGroup, con
     const employee = findEmployee_(id);
     if (!employee) throw new Error('ไม่พบรหัสพนักงาน');
     employeeSheet_().getRange(employee.row, 8, 1, 2).setValues([[contact.phone, contact.email]]);
-    writeEmployeeProfile_(employee, profile, true);
-    writeStatus_(employee.id, true, 'self-service (code only)', profile, true);
+    writeEmployeeProfile_(employee, profile, true, currentAddress);
+    writeStatus_(employee.id, true, 'self-service (code only)', profile, true, currentAddress);
     return {ok: true};
   } finally { lock.releaseLock(); }
 }
@@ -273,18 +313,19 @@ function adminDashboard(token) {
   return {total: employees.length, confirmed: employees.filter(e => e.confirmed).length, employees: employees};
 }
 
-function adminSaveEmployee(token, id, phone, email, confirmed, ordination, pilgrimage, bloodGroup) {
+function adminSaveEmployee(token, id, phone, email, confirmed, ordination, pilgrimage, bloodGroup, address) {
   requireAdmin_(token);
   const contact = validateContact_(phone, email, confirmed === true);
   const profile = validateProfile_(ordination, pilgrimage, bloodGroup, confirmed === true);
+  const currentAddress = validateAddress_(address, confirmed === true);
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
     const employee = findEmployee_(id);
     if (!employee) throw new Error('ไม่พบรหัสพนักงาน');
     employeeSheet_().getRange(employee.row, 8, 1, 2).setValues([[contact.phone, contact.email]]);
-    writeEmployeeProfile_(employee, profile, false);
-    writeStatus_(employee.id, confirmed === true, 'admin', profile);
+    writeEmployeeProfile_(employee, profile, false, currentAddress);
+    writeStatus_(employee.id, confirmed === true, 'admin', profile, false, currentAddress);
     return {ok: true};
   } finally { lock.releaseLock(); }
 }
