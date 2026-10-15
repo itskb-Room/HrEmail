@@ -5,6 +5,7 @@
 const EMPLOYEE_SHEET = 'ทะเบียนพนักงาน 2569';
 const UPDATE_SHEET = 'ContactUpdates';
 const SESSION_SECONDS = 1800;
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
@@ -28,8 +29,8 @@ function updatesSheet_() {
   let sheet = book.getSheetByName(UPDATE_SHEET);
   if (!sheet) {
     sheet = book.insertSheet(UPDATE_SHEET);
-    sheet.appendRow(['รหัสพนักงาน', 'สถานะยืนยัน', 'เวลาที่แก้ไข', 'ผู้แก้ไข']);
   }
+  sheet.getRange(1, 1, 1, 7).setValues([['รหัสพนักงาน', 'สถานะยืนยัน', 'เวลาที่แก้ไข', 'ผู้แก้ไข', 'เคยบรรพชาหรืออุปสมบท', 'เคยไปอุมเราะห์/ฮัจญ์', 'กรุ๊ปเลือด']]);
   return sheet;
 }
 
@@ -46,8 +47,8 @@ function statuses_() {
   const sheet = updatesSheet_();
   const last = sheet.getLastRow();
   const map = {};
-  if (last > 1) sheet.getRange(2, 1, last - 1, 4).getDisplayValues().forEach((r, i) => {
-    if (r[0]) map[r[0]] = {confirmed: r[1] === 'YES', updatedAt: r[2], updatedBy: r[3], row: i + 2};
+  if (last > 1) sheet.getRange(2, 1, last - 1, 7).getDisplayValues().forEach((r, i) => {
+    if (r[0]) map[r[0]] = {confirmed: r[1] === 'YES', updatedAt: r[2], updatedBy: r[3], ordination: r[4] === 'YES' ? true : r[4] === 'NO' ? false : null, pilgrimage: r[5] === 'YES' ? true : r[5] === 'NO' ? false : null, bloodGroup: r[6] || '', row: i + 2};
   });
   return map;
 }
@@ -56,13 +57,15 @@ function findEmployee_(id) {
   return employeeRows_().find(e => e.id === String(id || '').trim());
 }
 
-function publicEmployee_(e) {
-  return {id: e.id, name: e.name, department: e.department, position: e.position, phone: e.phone, email: e.email};
+function publicEmployee_(e, status) {
+  status = status || {};
+  return {id: e.id, name: e.name, department: e.department, position: e.position, phone: e.phone, email: e.email, ordination: status.ordination === true ? true : status.ordination === false ? false : null, pilgrimage: status.pilgrimage === true ? true : status.pilgrimage === false ? false : null, bloodGroup: status.bloodGroup || ''};
 }
 
 function lookupEmployee(id) {
   const employee = findEmployee_(id);
-  return employee ? publicEmployee_(employee) : null;
+  if (!employee) return null;
+  return publicEmployee_(employee, statuses_()[employee.id]);
 }
 
 // Run from the Apps Script editor before deployment. Returns counts only,
@@ -113,23 +116,36 @@ function validateContact_(phone, email, required) {
   return {phone: phones.join('\n'), email: emails.join('\n')};
 }
 
-function writeStatus_(id, confirmed, actor) {
+function validateProfile_(ordination, pilgrimage, bloodGroup, required) {
+  const hasOrdination = typeof ordination === 'boolean';
+  const hasPilgrimage = typeof pilgrimage === 'boolean';
+  bloodGroup = String(bloodGroup || '').trim().toUpperCase();
+  if (required && !hasOrdination) throw new Error('กรุณาเลือกข้อมูลการบรรพชาหรืออุปสมบท');
+  if (required && !hasPilgrimage) throw new Error('กรุณาเลือกข้อมูลการไปอุมเราะห์/ฮัจญ์');
+  if (required && BLOOD_GROUPS.indexOf(bloodGroup) < 0) throw new Error('กรุณาเลือกกรุ๊ปเลือด');
+  if (bloodGroup && BLOOD_GROUPS.indexOf(bloodGroup) < 0) throw new Error('กรุ๊ปเลือดไม่ถูกต้อง');
+  return {ordination: hasOrdination ? ordination : null, pilgrimage: hasPilgrimage ? pilgrimage : null, bloodGroup: bloodGroup};
+}
+
+function writeStatus_(id, confirmed, actor, profile) {
   const sheet = updatesSheet_();
   const old = statuses_()[id];
-  const row = [id, confirmed ? 'YES' : 'NO', new Date(), actor];
-  if (old) sheet.getRange(old.row, 1, 1, 4).setValues([row]);
+  profile = profile || old || {};
+  const row = [id, confirmed ? 'YES' : 'NO', new Date(), actor, profile.ordination === true ? 'YES' : profile.ordination === false ? 'NO' : '', profile.pilgrimage === true ? 'YES' : profile.pilgrimage === false ? 'NO' : '', profile.bloodGroup || ''];
+  if (old) sheet.getRange(old.row, 1, 1, 7).setValues([row]);
   else sheet.appendRow(row);
 }
 
-function updateContact(id, phone, email) {
+function updateContact(id, phone, email, ordination, pilgrimage, bloodGroup) {
   const contact = validateContact_(phone, email, true);
+  const profile = validateProfile_(ordination, pilgrimage, bloodGroup, true);
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
     const employee = findEmployee_(id);
     if (!employee) throw new Error('ไม่พบรหัสพนักงาน');
     employeeSheet_().getRange(employee.row, 8, 1, 2).setValues([[contact.phone, contact.email]]);
-    writeStatus_(employee.id, true, 'self-service (code only)');
+    writeStatus_(employee.id, true, 'self-service (code only)', profile);
     return {ok: true};
   } finally { lock.releaseLock(); }
 }
@@ -201,21 +217,22 @@ function adminDashboard(token) {
   const statuses = statuses_();
   const employees = employeeRows_().map(e => {
     const status = statuses[e.id] || {};
-    return Object.assign(publicEmployee_(e), {confirmed: !!status.confirmed, updatedAt: status.updatedAt || ''});
+    return Object.assign(publicEmployee_(e, status), {confirmed: !!status.confirmed, updatedAt: status.updatedAt || ''});
   });
   return {total: employees.length, confirmed: employees.filter(e => e.confirmed).length, employees: employees};
 }
 
-function adminSaveEmployee(token, id, phone, email, confirmed) {
+function adminSaveEmployee(token, id, phone, email, confirmed, ordination, pilgrimage, bloodGroup) {
   requireAdmin_(token);
   const contact = validateContact_(phone, email, confirmed === true);
+  const profile = validateProfile_(ordination, pilgrimage, bloodGroup, confirmed === true);
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
     const employee = findEmployee_(id);
     if (!employee) throw new Error('ไม่พบรหัสพนักงาน');
     employeeSheet_().getRange(employee.row, 8, 1, 2).setValues([[contact.phone, contact.email]]);
-    writeStatus_(employee.id, confirmed === true, 'admin');
+    writeStatus_(employee.id, confirmed === true, 'admin', profile);
     return {ok: true};
   } finally { lock.releaseLock(); }
 }
