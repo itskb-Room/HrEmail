@@ -164,6 +164,25 @@ function writeEmployeeProfile_(employee, profile, consentAccepted) {
   ]]);
 }
 
+function syncProfilesToEmployeeRegister_(employees, statuses) {
+  const sheet = employeeSheet_();
+  ensureEmployeeProfileHeaders_(sheet);
+  const byId = {};
+  employees.forEach(employee => byId[employee.id] = employee);
+  Object.keys(statuses).forEach(id => {
+    const employee = byId[id];
+    const status = statuses[id];
+    if (!employee) return;
+    sheet.getRange(employee.row, 10, 1, 5).setValues([[
+      status.ordination === true ? 'YES' : status.ordination === false ? 'NO' : '',
+      status.pilgrimage === true ? 'YES' : status.pilgrimage === false ? 'NO' : '',
+      status.bloodGroup || '',
+      status.consent ? 'YES' : 'NO',
+      status.consentAt || ''
+    ]]);
+  });
+}
+
 function updateContact(id, phone, email, ordination, pilgrimage, bloodGroup, consentAccepted) {
   const contact = validateContact_(phone, email, true);
   const profile = validateProfile_(ordination, pilgrimage, bloodGroup, true);
@@ -245,7 +264,9 @@ function adminLogout(token) {
 function adminDashboard(token) {
   requireAdmin_(token);
   const statuses = statuses_();
-  const employees = employeeRows_().map(e => {
+  const rows = employeeRows_();
+  syncProfilesToEmployeeRegister_(rows, statuses);
+  const employees = rows.map(e => {
     const status = statuses[e.id] || {};
     return Object.assign(publicEmployee_(e, status), {confirmed: !!status.confirmed, updatedAt: status.updatedAt || ''});
   });
