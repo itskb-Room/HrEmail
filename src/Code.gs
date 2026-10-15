@@ -85,12 +85,32 @@ function verifySetup() {
   return report;
 }
 
+function contactList_(value, type) {
+  const separators = type === 'phone' ? /[\n,;|/]+/ : /[\n,;|]+/;
+  const items = (Array.isArray(value) ? value : String(value || '').split(separators))
+    .map(v => String(v || '').trim()).filter(Boolean);
+  const seen = {};
+  return items.filter(item => {
+    const key = type === 'email' ? item.toLowerCase() : item.replace(/\D/g, '');
+    if (seen[key]) return false;
+    seen[key] = true;
+    return true;
+  });
+}
+
 function validateContact_(phone, email, required) {
-  phone = String(phone || '').trim();
-  email = String(email || '').trim();
-  if ((required || phone) && (!/^0\d{9}$/.test(phone.replace(/[-\s]/g, '')) || !/^[\d\s-]+$/.test(phone))) throw new Error('เบอร์โทรศัพท์ต้องเป็นหมายเลขไทย 10 หลัก');
-  if ((required || email) && !/^[A-Za-z0-9][A-Za-z0-9._%+-]*@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(email)) throw new Error('รูปแบบอีเมลไม่ถูกต้อง');
-  return {phone: phone, email: email};
+  const phones = contactList_(phone, 'phone');
+  const emails = contactList_(email, 'email');
+  if (phones.length > 5 || emails.length > 5) throw new Error('กรอกเบอร์โทรศัพท์และอีเมลได้ไม่เกินประเภทละ 5 รายการ');
+  if (required && !phones.length) throw new Error('กรุณากรอกเบอร์โทรศัพท์อย่างน้อย 1 เบอร์');
+  if (required && !emails.length) throw new Error('กรุณากรอกอีเมลอย่างน้อย 1 อีเมล');
+  phones.forEach((item, i) => {
+    if (!/^0\d{9}$/.test(item.replace(/[-\s]/g, '')) || !/^[\d\s-]+$/.test(item)) throw new Error('เบอร์โทรศัพท์ลำดับที่ ' + (i + 1) + ' ต้องเป็นหมายเลขไทย 10 หลัก');
+  });
+  emails.forEach((item, i) => {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._%+-]*@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(item)) throw new Error('อีเมลลำดับที่ ' + (i + 1) + ' มีรูปแบบไม่ถูกต้อง');
+  });
+  return {phone: phones.join('\n'), email: emails.join('\n')};
 }
 
 function writeStatus_(id, confirmed, actor) {
